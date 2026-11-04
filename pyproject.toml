@@ -9,6 +9,9 @@ description = "Config-driven nsys / PyTorch-profiler / NVTX integration for nemo
 requires-python = ">=3.10"
 dependencies = []
 
+[project.scripts]
+profiler_rsi = "profiler_rsi.cli:main"
+
 # `view` 前端是可选的:它要 starlette+uvicorn(本机 .venv 已有);核心 profiler/shim 零依赖。
 [project.optional-dependencies]
 view = ["starlette", "uvicorn"]

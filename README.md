@@ -56,3 +56,22 @@ python -m profiler_rsi.analyze kernels <trace.sqlite>       # kernel 启动分�
 ```
 
 通信 kernel 按名字识别(deep_ep / nccl),其余 GPU kernel 记为 compute。纯 stdlib sqlite3,无依赖。
+
+## 分析仪表盘(view 的 /analyze)
+
+`profiler_rsi view` 除了产出索引,还给每条 trace 一个**分析仪表盘** `/analyze?path=<trace|session-dir>`:
+跑固定分析引擎(analyze 的 overlap/kernels/streams + traceshot 的 info/imbalance/gaps),把结果渲成表,
+顶部一个**「在 tracelight 打开交互时间线」**按钮(新 tab,默认 `--tracelight-url http://<host>:8737`)。
+开页现算 + 落盘缓存(`<trace>.rsi-analysis.json`),首次显示「分析中」自动刷新,之后秒开。多 rank session 额外出
+imbalance/straggler 表。
+
+## 统一 CLI
+
+```bash
+profiler_rsi analyze overlap|kernels|streams <trace.sqlite>   # 确定性分析
+profiler_rsi analyze --all <trace|session-dir>                # 跑全套、写缓存 JSON
+profiler_rsi view --dir <out_dir> --tracelight-url http://<host>:8737
+profiler_rsi report <chrome_trace.json.gz>
+```
+`python -m profiler_rsi.{analyze,view,report}` 仍可用。tracelight/traceshot 是外部预编译工具
+(`tools.find_tool` 在 `outputs/tools/` 或 PATH 里找),不 vendor;nsys-ai 不接。

@@ -61,6 +61,16 @@ def _list_files(base: Path) -> list[dict]:
     return out
 
 
+def _list_sessions(base: Path) -> list[dict]:
+    """Subdirectories holding >=2 rank *.nsys-rep (a distributed session)."""
+    out = []
+    for d in sorted(p for p in base.iterdir() if p.is_dir() and not p.name.startswith((".", "_"))):
+        reps = list(d.glob("*.nsys-rep"))
+        if len(reps) >= 2:
+            out.append({"rel": str(d.relative_to(base)), "ranks": len(reps)})
+    return out
+
+
 def _page(title: str, body: str) -> str:
     return (
         f"<!doctype html><meta charset=utf-8><title>{html.escape(title)}</title>"
@@ -90,8 +100,8 @@ async def index(request):
             )
         elif f["name"].endswith(".nsys-rep"):
             actions = (
-                f'<a href="/nsys?path={rel_q}">查看汇总</a> · {dl} '
-                f'<span class=muted>(完整时间线需本地 Nsight)</span>'
+                f'<a href="/analyze?path={rel_q}"><b>分析</b></a> · '
+                f'<a href="/nsys?path={rel_q}">nsys 汇总</a> · {dl}'
             )
         else:
             actions = f'{dl} <span class=muted>(memory snapshot)</span>'
@@ -103,6 +113,15 @@ async def index(request):
         f"<p class=muted>{html.escape(str(base))}</p>"
         "<table><tr><th>文件</th><th>大小</th><th>操作</th></tr>" + "".join(rows) + "</table>"
     )
+    sess = _list_sessions(base)
+    if sess:
+        srows = "".join(
+            f'<tr><td><code>{html.escape(s["rel"])}/</code></td><td>{s["ranks"]} ranks</td>'
+            f'<td><a href="/analyze?path={urllib.parse.quote(s["rel"])}"><b>分析(session)</b></a></td></tr>'
+            for s in sess
+        )
+        body += ("<h2>多 rank session</h2>"
+                 "<table><tr><th>目录</th><th>rank 数</th><th>操作</th></tr>" + srows + "</table>")
     return HTMLResponse(_page("profiler_rsi — 产出索引", body))
 
 
@@ -260,7 +279,104 @@ getBuffer().then(buffer=>{{
     return HTMLResponse(page)
 
 
-def build_app(out_dir: str, public_base: str) -> Starlette:
+def _tbl(headers, rows_html):
+    th = "".join(f"<th>{html.escape(h)}</th>" for h in headers)
+    return f"<table><tr>{th}</tr>{rows_html}</table>"
+
+
+def _render_dashboard(res: dict, target: Path, rel: str, tl_url: str) -> str:
+    tl = f'{tl_url}/?path={urllib.parse.quote(str(target))}'
+    parts = [
+        f'<p><a href="/">&larr; 索引</a> · <code>{html.escape(rel)}</code>'
+        + (f' · {len(res.get("ranks", []))} ranks' if res.get("session") else "") + "</p>",
+        f'<p><a href="{html.escape(tl)}" target="_blank" '
+        'style="display:inline-block;padding:.5rem .9rem;background:#0969da;color:#fff;'
+        'border-radius:6px;font-weight:600">在 tracelight 打开交互时间线 ↗</a>'
+        '<span class=muted> (需 tracelight serve 在 :8737 且可达)</span></p>',
+    ]
+    if res.get("analyze_error"):
+        parts.append(f'<p class=muted>analyze 引擎出错:{html.escape(res["analyze_error"])}</p>')
+
+    ov = res.get("overlap")
+    if ov and not ov.get("empty"):
+        s = (f"GPU busy <b>{ov['busy_pct']:.1f}%</b> · idle(bubble) <b>{ov['idle_pct']:.1f}%</b> "
+             f"· span {ov['span_s']:.1f}s")
+        if "exposed_pct" in ov:
+            s += (f"<br>通信 {ov['comm_total_s']:.1f}s:hidden <b>{ov['hidden_pct']:.0f}%</b> / "
+                  f"exposed <b>{ov['exposed_pct']:.0f}%</b>(占整窗 {ov['exposed_of_span_pct']:.1f}%)")
+        rep = f"(代表 rank: {html.escape(res['representative'])})" if res.get("representative") else ""
+        parts.append(f"<h2>Overlap / GPU 空转 {rep}</h2><p>{s}</p>")
+
+    kr = res.get("kernels")
+    if kr:
+        cat = "".join(f"<tr><td>{html.escape(c['category'])}</td><td>{c['count_pct']:.1f}%</td>"
+                      f"<td>{c['time_pct']:.1f}%</td></tr>" for c in kr["by_category"])
+        top_t = "".join(f"<tr><td>{k['time_pct']:.1f}%</td><td>{k['time_s']:.2f}</td><td>{k['count']:,}</td>"
+                        f"<td><code>{html.escape(k['name'][:70])}</code></td></tr>" for k in kr["by_time"][:12])
+        top_c = "".join(f"<tr><td>{k['count_pct']:.1f}%</td><td>{k['count']:,}</td><td>{k['time_pct']:.1f}%</td>"
+                        f"<td><code>{html.escape(k['name'][:70])}</code></td></tr>" for k in kr["by_count"][:12])
+        parts.append(f"<h2>Kernel 分布 ({kr['total_count']:,} 次启动 / {kr['total_time_s']:.0f}s / {kr['distinct']} 种)</h2>")
+        parts.append("<h3>按类别(次数 vs 时间)</h3>" + _tbl(["类别", "启动次数%", "GPU时间%"], cat))
+        parts.append("<h3>最耗时 Top</h3>" + _tbl(["time%", "total_s", "count", "name"], top_t))
+        parts.append("<h3>启动最多 Top(碎 kernel / 融合目标)</h3>" + _tbl(["count%", "count", "time%", "name"], top_c))
+
+    st = res.get("streams")
+    if st:
+        sr = "".join(f"<tr><td>{s['stream']}</td><td>[{s['role']}]</td><td>{s['gpu_time_s']:.2f}</td>"
+                     f"<td>{s['kernels']:,}</td><td><code>{html.escape(s['top_kernel'][:60])}</code></td></tr>"
+                     for s in st["streams"])
+        parts.append("<h2>CUDA streams</h2>" + _tbl(["stream", "role", "gpu_s", "kernels", "top kernel"], sr))
+
+    for sub, label in (("imbalance", "跨 rank 不均 / straggler"), ("gaps", "GPU 空转 gaps"), ("info", "trace 概览")):
+        ts = (res.get("traceshot") or {}).get(sub)
+        if ts and ts.get("raw"):
+            parts.append(f"<h2>{label} <span class=muted>(traceshot {sub})</span></h2>"
+                         f"<pre style='overflow:auto;max-height:28rem'>{html.escape(ts['raw'])}</pre>")
+    return _page(f"分析 — {target.name}", "".join(parts))
+
+
+async def analyze_page(request):
+    base: Path = request.app.state.base
+    rel = request.query_params.get("path", "")
+    target = _safe_target(base, rel)
+    if target is None or not target.exists():
+        return PlainTextResponse("not found", status_code=404)
+    from profiler_rsi import cache as _cache
+
+    if _cache.is_fresh(target):
+        res = _cache.analyze_all(target)
+        return HTMLResponse(_render_dashboard(res, target, rel, request.app.state.tracelight_url))
+
+    # Not cached → kick off a background build (guarded against respawn storms), show a waiting page.
+    marker = _cache.cache_path(target).with_name(_cache.cache_path(target).name + ".building")
+    import time as _t
+
+    recent = marker.exists() and (_t.time() - marker.stat().st_mtime) < 600
+    if not recent:
+        try:
+            marker.write_text(str(_t.time()))
+        except Exception:
+            pass
+        import subprocess as _sp
+        import profiler_rsi as _pr
+
+        # Guarantee the spawned interpreter can import profiler_rsi regardless of how
+        # sys.executable resolves (uv venv base-interpreter quirk): pass src dir on PYTHONPATH,
+        # and /usr/local/bin on PATH so ensure_sqlite/traceshot find nsys.
+        _src = str(Path(_pr.__file__).resolve().parent.parent)
+        _env = dict(os.environ,
+                    PYTHONPATH=_src + os.pathsep + os.environ.get("PYTHONPATH", ""),
+                    PATH="/usr/local/bin" + os.pathsep + os.environ.get("PATH", ""))
+        _sp.Popen([sys.executable, "-m", "profiler_rsi.cli", "analyze", "--all", str(target)],
+                  stdout=_sp.DEVNULL, stderr=_sp.DEVNULL, env=_env)
+    body = ('<meta http-equiv="refresh" content="5">'
+            f'<p><a href="/">&larr; 索引</a></p>'
+            f'<p>分析中:<code>{html.escape(rel)}</code> …(大 trace 要转 sqlite + 跑引擎,首次几十秒~几分钟)'
+            '<br>页面每 5s 自动刷新,算完即出结果。</p>')
+    return HTMLResponse(_page("分析中…", body))
+
+
+def build_app(out_dir: str, public_base: str, tracelight_url: str = "") -> Starlette:
     base = Path(out_dir).resolve()
     base.mkdir(parents=True, exist_ok=True)
     app = Starlette(
@@ -270,12 +386,14 @@ def build_app(out_dir: str, public_base: str) -> Starlette:
             Route("/summary", summary),
             Route("/nsys", nsys_report),
             Route("/perfetto", perfetto),
+            Route("/analyze", analyze_page),
         ],
         # Perfetto (ui.perfetto.dev) fetches the torch trace cross-origin.
         middleware=[Middleware(CORSMiddleware, allow_origins=["https://ui.perfetto.dev"], allow_methods=["GET"])],
     )
     app.state.base = base
     app.state.public_base = public_base.rstrip("/")
+    app.state.tracelight_url = (tracelight_url or "").rstrip("/") or f"{public_base.rstrip('/').rsplit(':', 1)[0]}:8737"
     return app
 
 
@@ -289,13 +407,16 @@ def main(argv=None):
         help="concrete IP/hostname put into download & Perfetto URLs (never 0.0.0.0)",
     )
     ap.add_argument("--port", type=int, default=int(os.environ.get("PROFILER_RSI_VIEW_PORT", "8351")))
+    ap.add_argument("--tracelight-url", default=os.environ.get("PROFILER_RSI_TRACELIGHT_URL", ""),
+                    help="tracelight serve 的对外 URL(默认 http://<public-host>:8737)")
     args = ap.parse_args(argv)
 
     import uvicorn
 
     public = f"http://{args.public_host}:{args.port}"
-    print(f"[profiler_rsi.view] bind {args.host}:{args.port} · advertised {public} · dir {args.dir}")
-    uvicorn.run(build_app(args.dir, public), host=args.host, port=args.port, log_level="info")
+    tl = args.tracelight_url or f"http://{args.public_host}:8737"
+    print(f"[profiler_rsi.view] bind {args.host}:{args.port} · advertised {public} · tracelight {tl} · dir {args.dir}")
+    uvicorn.run(build_app(args.dir, public, tl), host=args.host, port=args.port, log_level="info")
 
 
 def _default_host() -> str:
