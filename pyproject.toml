@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nemo-profiler-rsi"
+version = "0.1.0"
+description = "Config-driven nsys / PyTorch-profiler / NVTX integration for nemo_erniebot training"
+requires-python = ">=3.10"
+dependencies = []
+
+# `view` 前端是可选的:它要 starlette+uvicorn(本机 .venv 已有);核心 profiler/shim 零依赖。
+[project.optional-dependencies]
+view = ["starlette", "uvicorn"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
