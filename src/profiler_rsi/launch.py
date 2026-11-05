@@ -57,7 +57,7 @@ def maybe_reexec() -> None:
             "-t",
             ",".join(trace),
             "--capture-range=cudaProfilerApi",
-            "--capture-range-end=stop",
+            f"--capture-range-end={prof.get('nsys_capture_range_end') or 'stop'}",
             "--force-overwrite",
             "true",
             "-o",

@@ -35,6 +35,11 @@ class RsiProfilingConfig(ProfilingConfig):
     nsys_extra_args: list[str] = field(default_factory=list)
     """Extra raw args appended to the nsys command line."""
 
+    nsys_capture_range_end: str = "stop"
+    """nsys --capture-range-end. 'stop' keeps the app running past the window (report
+    flushed at process exit); 'stop-shutdown' ends the app at window end and flushes
+    immediately — use for bounded profile runs so no final-save or external kill is needed."""
+
     def finalize(self) -> None:
         # Keep base validation (mutual-exclusion + step-window asserts). Redirect the
         # memory-snapshot path under the workspace if left at the bridge default.
