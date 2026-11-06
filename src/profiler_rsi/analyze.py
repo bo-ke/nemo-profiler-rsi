@@ -47,8 +47,9 @@ def _classify(n: str) -> str:
     low = n.lower()
     if "deep_ep" in n or "nccl" in low:
         return "MoE a2a 通信"
-    if any(k in n for k in ("sparse_attention", "sparse_attn", "dsa", "indexer", "score_recompute")):
-        return "DSA 注意力"
+    if any(k in n for k in ("sparse_attention", "sparse_attn", "dsa", "indexer", "score_recompute",
+                            "sdpa", "flash", "fmha", "fused_attn", "dot_do_o", "attention")):
+        return "注意力"
     if any(k in n for k in ("mla_rope", "hadamard", "permute", "_rope")):
         return "MLA/rope/permute"
     if any(k in n for k in ("layernorm", "rmsnorm", "rms_norm", "rsqrt", "_norm_", "mean_mul_pow")):

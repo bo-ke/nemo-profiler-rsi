@@ -1,0 +1,52 @@
+{
+  "title": "DSv4-L12 策略阶梯 · 任务控制室",
+  "subtitle": "单机 8×H800 · GBS=4096 · mock · 2026-11-05/06 · perf 取自 ladder-perf/results.md,analysis 由 trace 实测",
+  "baseline": "base",
+  "strategies": [
+    {
+      "id": "base",
+      "label": "base",
+      "sub": "ernie_dev · 窗口 flash",
+      "order": 0,
+      "config": {"model": "ernie_dev", "attn": "窗口 flash", "experts": 512, "moe_ffn": 768, "topk": 8, "moe_layers": "6/12", "shared": 0, "mbs": 8, "tp": 1, "pp": 1, "ep": 8, "dp": 1, "cp": 1},
+      "perf": {"tok_s": 75000, "tflops": 191, "mfu": 0.193},
+      "trace": "base_l12_gbs4096/rank0_2406790.nsys-rep"
+    },
+    {
+      "id": "allmoe",
+      "label": "全层MoE+shared",
+      "sub": "ernie_dev · 窗口 flash · MoE 改碎",
+      "order": 1,
+      "config": {"model": "ernie_dev", "attn": "窗口 flash", "experts": 256, "moe_ffn": 192, "topk": 6, "moe_layers": "12/12", "shared": 1, "mbs": 8, "tp": 1, "pp": 1, "ep": 8, "dp": 1, "cp": 1},
+      "perf": {"tok_s": 73900, "tflops": 173.5, "mfu": 0.175},
+      "trace": "base_swamoe_gbs4096/rank0_2463585.nsys-rep"
+    },
+    {
+      "id": "swa",
+      "label": "SWA去DSA",
+      "sub": "dsv4 · 滑窗 sparse(无 indexer)",
+      "order": 2,
+      "config": {"model": "dsv4", "attn": "滑窗 sparse", "experts": 256, "moe_ffn": 192, "topk": 6, "moe_layers": "12/12", "shared": 1, "mbs": 4, "tp": 1, "pp": 1, "ep": 8, "dp": 1, "cp": 1},
+      "perf": {"tok_s": 37700, "tflops": 82, "mfu": 0.083},
+      "trace": "swa_nodsa_gbs4096/rank0_2420754.nsys-rep"
+    },
+    {
+      "id": "dsa",
+      "label": "真 DSA",
+      "sub": "dsv4 · CSA+HCA+indexer(代码原始)",
+      "order": 3,
+      "config": {"model": "dsv4", "attn": "DSA(CSA+HCA+idx)", "experts": 512, "moe_ffn": 192, "topk": 8, "moe_layers": "12/12", "shared": 1, "mbs": 4, "tp": 1, "pp": 1, "ep": 8, "dp": 1, "cp": 1},
+      "perf": {"tok_s": 21200, "tflops": 64.2, "mfu": 0.065},
+      "trace": "dsv4_dsa_gbs4096/rank0_2858178.nsys-rep"
+    },
+    {
+      "id": "align",
+      "label": "align(落地)",
+      "sub": "dsv4 · DSA · 256/top6(参数对齐)",
+      "order": 4,
+      "config": {"model": "dsv4", "attn": "DSA(CSA+HCA+idx)", "experts": 256, "moe_ffn": 192, "topk": 6, "moe_layers": "12/12", "shared": 1, "mbs": 4, "tp": 1, "pp": 1, "ep": 8, "dp": 1, "cp": 1},
+      "perf": {"tok_s": 25000, "tflops": 73.5, "mfu": 0.074},
+      "trace": "dsv4_align/rank0_2093489.nsys-rep"
+    }
+  ]
+}

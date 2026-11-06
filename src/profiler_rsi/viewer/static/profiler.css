@@ -1,0 +1,174 @@
+/* profiler_rsi — additions on top of base.css (the erndata cook-view design
+   system). Light default + base.css's own ◐ dark toggle. No custom theme here:
+   every colour is a base.css token, so both themes come for free. */
+
+/* ── telemetry strip ─────────────────────────────────────────── */
+.telemetry { max-width: 1560px; margin: 0 auto; padding: 7px 22px;
+  display: flex; gap: 6px 20px; flex-wrap: wrap; align-items: baseline;
+  font: 11.5px/1.5 var(--mono); color: var(--ink-3);
+  border-bottom: 1px solid var(--hair); }
+.telemetry span { white-space: nowrap; }
+.telemetry b { color: var(--ink-2); font-weight: 600; }
+
+/* ── nav / back bar (compare + profile) ──────────────────────── */
+.nav { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.nav .t { font: 600 15px/1.3 var(--sans); }
+.nav .sub { color: var(--ink-3); font: 11.5px/1.4 var(--mono); }
+.nav .grow { flex: 1; }
+.nav a.ghost { padding: 4px 10px; border-radius: 5px; text-decoration: none;
+  border: 1px solid transparent; color: var(--ink-2); font-size: 12.5px; }
+.nav a.ghost:hover { background: var(--plane); border-color: var(--rule); color: var(--accent); }
+.nav a.primary { text-decoration: none; }
+
+a.primary { display: inline-block; border: 1px solid var(--accent);
+  color: var(--accent); font-weight: 600; font-size: 12.5px;
+  padding: 4px 12px; border-radius: 5px; background: var(--surface); }
+a.primary:hover { background: var(--accent-wash); }
+
+/* ── delta badges (compare) ──────────────────────────────────── */
+.d { font: 11px var(--mono); margin-left: 7px; white-space: nowrap; }
+.d.up { color: var(--s3); } .d.down { color: var(--s8); } .d.zero { color: var(--ink-3); }
+
+/* ── home: experiment table ──────────────────────────────────── */
+table.lib { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.lib th { cursor: pointer; user-select: none; white-space: nowrap; }
+table.lib th.nosort { cursor: default; }
+table.lib th .arr { color: var(--accent); font-size: 9px; margin-left: 3px; }
+table.lib td { border-bottom: 1px solid var(--grid); vertical-align: middle; }
+table.lib tbody tr { cursor: pointer; }
+table.lib tbody tr:hover { background: var(--plane); }
+table.lib td.pickcell, table.lib th.pickcell { width: 30px; text-align: center; cursor: default; }
+table.lib td.name { font-family: var(--sans); }
+table.lib td.name .nm { font-weight: 600; color: var(--ink); }
+table.lib tbody tr:hover td.name .nm { color: var(--accent); }
+table.lib td.name .sub { color: var(--ink-3); font: 11px/1.4 var(--mono); margin-top: 1px; }
+table.lib td.txt { font-family: var(--sans); }
+table.lib td .flag { margin-left: 6px; }
+table.lib td.rm { width: 26px; text-align: center; color: var(--ink-3); }
+table.lib td.rm span { cursor: pointer; opacity: 0; font-size: 13px; }
+table.lib tbody tr:hover td.rm span { opacity: .55; }
+table.lib td.rm span:hover { color: var(--s8); opacity: 1; }
+.notrace { color: var(--ink-3); font: 10.5px var(--mono); }
+
+/* identity dot reused from base .dot; a tiny trace-status dot */
+.sdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  margin-right: 6px; vertical-align: middle; }
+
+/* ── category composition bar (compare + profile) ────────────── */
+.catwrap { display: flex; flex-direction: column; gap: 9px; }
+.catrow { display: grid; grid-template-columns: 180px 1fr; align-items: center; gap: 14px; }
+.catrow .nm { font: 12px var(--mono); color: var(--ink-2); text-align: right;
+  cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.catrow .nm:hover { color: var(--accent); }
+.catrow .nm .mb { color: var(--ink-3); font-size: 10px; }
+.catbar { position: relative; display: flex; height: 24px; border-radius: 5px;
+  overflow: hidden; background: var(--plane); border: 1px solid var(--hair); }
+.catbar .seg { height: 100%; min-width: 0; transition: opacity .12s, filter .12s; }
+.catbar .seg + .seg { border-left: 1px solid var(--surface); }
+.catbar .seg.dim { opacity: .14; }
+.catbar .seg:hover { filter: brightness(1.08) saturate(1.1); }
+.guides { position: absolute; inset: 0; pointer-events: none; }
+.guides i { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--hair); }
+
+/* ── operator diff / category table marks ────────────────────── */
+.kdot { display: inline-block; width: 9px; height: 9px; border-radius: 2px;
+  margin-right: 7px; vertical-align: middle; flex: none; }
+td.knm { font: 11.5px var(--mono); max-width: 360px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+td.kcat { font: 11.5px var(--mono); color: var(--ink-3); }
+.catmini { position: relative; height: 7px; border-radius: 3px;
+  background: var(--grid); min-width: 46px; overflow: hidden; }
+.catmini > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+
+/* ── compare: metric / diff matrices ─────────────────────────── */
+table.matrix { width: 100%; border-collapse: collapse; }
+table.matrix th, table.matrix td { padding: 7px 12px; white-space: nowrap; }
+table.matrix thead th { text-align: right; vertical-align: bottom;
+  border-bottom: 1px solid var(--rule); text-transform: none; letter-spacing: 0; }
+table.matrix th.row, table.matrix td.row { text-align: left; }
+table.matrix th[data-base], table.matrix thead th:not(.row) { cursor: pointer; }
+table.matrix th .lab { display: block; font: 600 13px var(--sans); color: var(--ink);
+  text-transform: none; letter-spacing: 0; }
+table.matrix th .sb { display: block; font: 10px var(--mono); color: var(--ink-3);
+  margin-top: 2px; font-weight: 400; }
+table.matrix th.base { background: var(--accent-wash); }
+table.matrix th.base .lab { color: var(--accent); }
+table.matrix th .basetag { display: block; font: 9px var(--mono); color: var(--accent);
+  letter-spacing: .1em; margin-top: 2px; }
+table.matrix th:not(.row):hover .lab { color: var(--accent); }
+table.matrix td.row { color: var(--ink-2); font: 12px var(--mono); }
+table.matrix td.row .rowdir { color: var(--ink-3); }
+table.matrix td.num { text-align: right; }
+table.matrix td .v { font: 13px var(--mono); color: var(--ink); }
+table.matrix td.isbase { background: var(--accent-wash); }
+table.matrix td.isbase .v { color: var(--accent); font-weight: 600; }
+table.matrix tbody tr { border-top: 1px solid var(--grid); }
+/* config diff marks */
+table.matrix td.chg { background: var(--accent-wash); }
+table.matrix td.chg .v { color: var(--accent); }
+table.matrix td.vsbase { box-shadow: inset 2px 0 0 var(--accent); }
+table.matrix td.same .v { color: var(--ink-3); }
+
+/* ── embedded tracelight timeline (profile) ──────────────────── */
+.tlframe { width: 100%; height: 560px; border: 1px solid var(--hair);
+  border-radius: 7px; background: var(--plane); display: block; }
+.tlbar { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.tlbar .path { font: 11px var(--mono); color: var(--ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── profile config grid (simple kv tiles) ───────────────────── */
+.cfgrid .cfgrp { display: flex; flex-direction: column; gap: 4px; }
+.cfgrp .kv1 { font: 10px var(--mono); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-3); }
+.cfgrp b { font: 600 14px var(--sans); color: var(--ink); }
+
+/* add-form inputs that sit inside a .cfgrp (home add flow) */
+.cfgrp input { background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 5px; color: var(--ink); padding: 4px 7px; font: 12px var(--mono);
+  width: 100%; }
+.cfgrp input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ── measured / declared provenance tag ──────────────────────── */
+.srctag { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 3px;
+  font: 9px/1.5 var(--mono); letter-spacing: .04em; vertical-align: middle; font-weight: 600; }
+.srctag.decl { background: var(--accent-wash); color: var(--accent); }
+.srctag.meas { background: var(--plane); color: var(--ink-3); }
+
+/* ── clickable-row affordance (home table) ───────────────────── */
+.goarrow { color: var(--ink-3); font-weight: 700; margin-left: 6px; opacity: 0;
+  transition: opacity .1s, transform .1s; display: inline-block; }
+table.lib tbody tr:hover .goarrow { opacity: .75; transform: translateX(2px); color: var(--accent); }
+
+/* ── "设为基准" hint on non-base compare headers ──────────────── */
+.setbase { display: block; font: 9px var(--mono); color: var(--ink-3); margin-top: 2px;
+  letter-spacing: .06em; opacity: 0; transition: opacity .1s; }
+table.matrix th:not(.row):hover .setbase { opacity: .8; color: var(--accent); }
+
+/* compare category legend is interactive (click to isolate) — show it */
+.legend .item[data-cat] { cursor: pointer; }
+.legend .item[data-cat]:hover { color: var(--accent); }
+
+/* ── responsive: keep the compare matrix usable in a narrow window ─ */
+.card .scroll { overflow: auto; }
+table.matrix { min-width: 640px; }
+table.matrix td.row, table.matrix th.row { position: sticky; left: 0; z-index: 1;
+  background: var(--surface); }
+table.matrix th.row { background: var(--surface); }
+@media (max-width: 1100px) {
+  .stats { grid-template-columns: repeat(3, 1fr); }
+  header h1 { font-size: 15px; }
+  #rootmeta { display: none; }
+}
+@media (max-width: 720px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .catrow { grid-template-columns: 110px 1fr; }
+  .telemetry { gap: 4px 12px; }
+  .tlframe { height: 420px; }
+}
+
+/* ── fixed tooltip (category segments) — #tip beats base.css #tip ─ */
+#tip.tip { position: fixed; z-index: 40; pointer-events: none;
+  max-width: 320px; background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 6px; padding: 7px 10px; font: 11px/1.55 var(--mono); color: var(--ink-2);
+  box-shadow: 0 6px 22px rgba(0,0,0,.18); min-width: 0; }
+#tip.tip b { color: var(--ink); font-weight: 600; }
